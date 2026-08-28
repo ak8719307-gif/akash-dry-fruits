@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Shop All Products — Akash Dry Fruits</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="site-header"></div>
+
+<div class="page-header">
+  <div class="container">
+    <div class="breadcrumb"><a href="/index.html">Home</a> / Shop</div>
+    <h1>Shop All Products</h1>
+  </div>
+</div>
+
+<div class="container section">
+  <div class="grid-2col">
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <span id="result-count" style="color:var(--gray-500);font-size:.9rem;"></span>
+        <select id="sort-select" class="btn btn-outline" style="padding:8px 14px;">
+          <option value="">Sort: Latest</option>
+          <option value="price_low">Price: Low to High</option>
+          <option value="price_high">Price: High to Low</option>
+          <option value="rating">Top Rated</option>
+          <option value="name">Name: A-Z</option>
+        </select>
+      </div>
+      <div class="product-grid" id="shop-products"></div>
+      <div id="shop-empty" class="empty-state" style="display:none;">
+        <div class="icon">🔍</div>
+        <h3>No products found</h3>
+        <p>Try a different search term or clear your filters.</p>
+      </div>
+      <div id="pagination" style="display:flex;gap:8px;justify-content:center;margin-top:30px;"></div>
+    </div>
+
+    <aside class="filter-sidebar">
+      <div class="card">
+        <div class="filter-group">
+          <h4>Category</h4>
+          <div id="filter-categories"></div>
+        </div>
+        <div class="divider"></div>
+        <div class="filter-group">
+          <h4>Price (per 1kg)</h4>
+          <div class="form-row">
+            <input type="number" id="min-price" placeholder="Min ₹" />
+            <input type="number" id="max-price" placeholder="Max ₹" />
+          </div>
+          <button class="btn btn-primary btn-block" style="margin-top:10px;" onclick="applyFilters()">Apply</button>
+          <button class="btn btn-outline btn-block" style="margin-top:8px;" onclick="clearFilters()">Clear Filters</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div id="site-footer"></div>
+
+<script src="/js/api.js"></script>
+<script src="/js/main.js"></script>
+<script>
+let state = { search: '', category: '', minPrice: '', maxPrice: '', sort: '', page: 1 };
+
+function readParamsFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  state.search = params.get('search') || '';
+  state.category = params.get('category') || '';
+}
+
+async function loadCategoryFilters() {
+  const { categories } = await Api.categories();
+  document.getElementById('filter-categories').innerHTML = `
+    <label><input type="radio" name="cat" value="" ${!state.category ? 'checked' : ''} onchange="setCategory('')"/> All Categories</label>
+    ${categories.map(c => `<label><input type="radio" name="cat" value="${c.slug}" ${state.category === c.slug ? 'checked' : ''} onchange="setCategory('${c.slug}')"/> ${c.name}</label>`).join('')}
+  `;
+}
+
+function setCategory(slug) { state.category = slug; state.page = 1; loadProducts(); }
+
+function applyFilters() {
+  state.minPrice = document.getElementById('min-price').value;
+  state.maxPrice = document.getElementById('max-price').value;
+  state.page = 1;
+  loadProducts();
+}
+
+function clearFilters() {
+  state = { search: state.search, category: '', minPrice: '', maxPrice: '', sort: '', page: 1 };
+  document.getElementById('min-price').value = '';
+  document.getElementById('max-price').value = '';
+  document.getElementById('sort-select').value = '';
+  loadCategoryFilters();
+  loadProducts();
+}
+
+async function loadProducts() {
+  const params = {};
+  if (state.search) params.search = state.search;
+  if (state.category) params.category = state.category;
+  if (state.minPrice) params.minPrice = state.minPrice;
+  if (state.maxPrice) params.maxPrice = state.maxPrice;
+  if (state.sort) params.sort = state.sort;
+  params.page = state.page;
+  params.limit = 12;
+
+  const { products, total, totalPages, page } = await Api.products(params);
+  const grid = document.getElementById('shop-products');
+  grid.innerHTML = products.map(productCardHtml).join('');
+  bindPackPills(grid);
+  document.getElementById('result-count').textContent = `${total} product${total !== 1 ? 's' : ''} found`;
+  document.getElementById('shop-empty').style.display = products.length ? 'none' : 'block';
+
+  const pag = document.getElementById('pagination');
+  pag.innerHTML = '';
+  for (let i = 1; i <= totalPages; i++) {
+    const b = document.createElement('button');
+    b.className = 'btn ' + (i === page ? 'btn-primary' : 'btn-outline') + ' btn-sm';
+    b.textContent = i;
+    b.onclick = () => { state.page = i; loadProducts(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+    pag.appendChild(b);
+  }
+}
+
+document.getElementById('sort-select').addEventListener('change', (e) => { state.sort = e.target.value; loadProducts(); });
+
+readParamsFromUrl();
+loadCategoryFilters();
+loadProducts();
+</script>
+</body>
+</html>

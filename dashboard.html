@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard — Akash Admin</title>
+<meta name="robots" content="noindex, nofollow" />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/admin/css/admin.css" />
+</head>
+<body>
+<div class="admin-shell" id="admin-shell"></div>
+<script src="/admin/js/admin.js"></script>
+<script>
+renderAdminLayout('Dashboard');
+
+async function loadDashboard() {
+  const content = document.getElementById('admin-content');
+  content.innerHTML = '<p>Loading...</p>';
+  try {
+    const d = await AdminApi.dashboard();
+    content.innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-card"><div class="label">Total Products</div><div class="value">${d.totalProducts}</div></div>
+        <div class="stat-card"><div class="label">Total Orders</div><div class="value">${d.totalOrders}</div></div>
+        <div class="stat-card"><div class="label">Pending Orders</div><div class="value">${d.pendingOrders}</div></div>
+        <div class="stat-card"><div class="label">Delivered Orders</div><div class="value">${d.deliveredOrders}</div></div>
+        <div class="stat-card"><div class="label">Cancelled Orders</div><div class="value">${d.cancelledOrders}</div></div>
+        <div class="stat-card"><div class="label">Total Sales</div><div class="value">${formatINR(d.totalSales)}</div></div>
+        <div class="stat-card"><div class="label">Today's Sales</div><div class="value">${formatINR(d.todaySales)}</div></div>
+        <div class="stat-card"><div class="label">Monthly Sales</div><div class="value">${formatINR(d.monthSales)}</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+          <h3>⚠️ Low Stock Products</h3>
+          ${d.lowStock.length ? `<table class="data-table"><thead><tr><th>Product</th><th>Stock</th></tr></thead><tbody>
+            ${d.lowStock.map(p => `<tr><td>${p.name}</td><td><span class="badge badge-red">${p.stock} left</span></td></tr>`).join('')}
+          </tbody></table>` : '<p style="color:var(--gray-500);">All products are well stocked.</p>'}
+        </div>
+        <div class="card">
+          <h3>🧾 Recent Orders</h3>
+          ${d.recentOrders.length ? `<table class="data-table"><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Status</th></tr></thead><tbody>
+            ${d.recentOrders.map(o => `<tr><td>${o.order_code}</td><td>${o.customer_name}</td><td>${formatINR(o.total)}</td><td><span class="badge badge-gold">${o.status}</span></td></tr>`).join('')}
+          </tbody></table>` : '<p style="color:var(--gray-500);">No orders yet.</p>'}
+          <a href="/admin/orders.html" class="btn btn-outline btn-sm" style="margin-top:10px;">View All Orders</a>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    content.innerHTML = `<p style="color:var(--red-600);">${e.message}</p>`;
+  }
+}
+loadDashboard();
+</script>
+</body>
+</html>

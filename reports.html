@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sales Reports — Akash Admin</title>
+<meta name="robots" content="noindex, nofollow" />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/admin/css/admin.css" />
+</head>
+<body>
+<div class="admin-shell" id="admin-shell"></div>
+<script src="/admin/js/admin.js"></script>
+<script>
+renderAdminLayout('Sales Reports');
+
+async function loadReports(params = {}) {
+  const content = document.getElementById('admin-content');
+  content.innerHTML = `
+    <div class="filter-row">
+      <input type="date" id="from-date" value="${params.from || ''}"/>
+      <input type="date" id="to-date" value="${params.to || ''}"/>
+      <button class="btn btn-primary" onclick="applyDateFilter()">Filter</button>
+      <button class="btn btn-outline" onclick="loadReports()">Reset</button>
+    </div>
+    <div id="report-body"><p>Loading...</p></div>
+  `;
+  const d = await AdminApi.reports(params);
+  document.getElementById('report-body').innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-card"><div class="label">Today's Sales</div><div class="value">${formatINR(d.todaySales)}</div></div>
+      <div class="stat-card"><div class="label">This Week</div><div class="value">${formatINR(d.weekSales)}</div></div>
+      <div class="stat-card"><div class="label">This Month</div><div class="value">${formatINR(d.monthSales)}</div></div>
+      <div class="stat-card"><div class="label">${params.from ? 'Selected Range' : 'Total'} Sales</div><div class="value">${formatINR(d.totalSales)}</div></div>
+      <div class="stat-card"><div class="label">${params.from ? 'Range' : 'Total'} Orders</div><div class="value">${d.totalOrders}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div class="card">
+        <h3>Best-Selling Products</h3>
+        ${d.bestSellers.length ? `<table class="data-table"><thead><tr><th>Product</th><th>Qty Sold</th><th>Revenue</th></tr></thead><tbody>
+          ${d.bestSellers.map(b => `<tr><td>${b.product_name}</td><td>${b.qty}</td><td>${formatINR(b.revenue)}</td></tr>`).join('')}
+        </tbody></table>` : '<p style="color:var(--gray-500);">No sales data yet.</p>'}
+      </div>
+      <div class="card">
+        <h3>Category-wise Sales</h3>
+        ${d.categorySales.length ? `<table class="data-table"><thead><tr><th>Category</th><th>Revenue</th></tr></thead><tbody>
+          ${d.categorySales.map(c => `<tr><td>${c.category}</td><td>${formatINR(c.revenue)}</td></tr>`).join('')}
+        </tbody></table>` : '<p style="color:var(--gray-500);">No sales data yet.</p>'}
+      </div>
+    </div>
+  `;
+}
+
+function applyDateFilter() {
+  const from = document.getElementById('from-date').value;
+  const to = document.getElementById('to-date').value;
+  if (!from || !to) { toast('Please select both dates'); return; }
+  loadReports({ from, to });
+}
+
+loadReports();
+</script>
+</body>
+</html>

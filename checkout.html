@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Checkout — Akash Dry Fruits</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="site-header"></div>
+
+<div class="page-header">
+  <div class="container">
+    <div class="breadcrumb"><a href="/index.html">Home</a> / <a href="/cart.html">Cart</a> / Checkout</div>
+    <h1>Checkout</h1>
+  </div>
+</div>
+
+<div class="container section" id="checkout-root">
+  <div class="grid-2col">
+    <div class="card">
+      <h3>Delivery Details</h3>
+      <form id="checkout-form">
+        <div class="form-group"><label>Full Name *</label><input required name="customer_name" /></div>
+        <div class="form-row">
+          <div class="form-group"><label>Mobile Number *</label><input required name="mobile" pattern="[0-9]{10}" maxlength="10" /></div>
+          <div class="form-group"><label>Email</label><input type="email" name="email" /></div>
+        </div>
+        <div class="form-group"><label>Full Address *</label><textarea required name="address" rows="2"></textarea></div>
+        <div class="form-row">
+          <div class="form-group"><label>City *</label><input required name="city" /></div>
+          <div class="form-group"><label>State *</label><input required name="state" /></div>
+        </div>
+        <div class="form-group"><label>Pincode *</label><input required name="pincode" pattern="[0-9]{6}" maxlength="6" /></div>
+
+        <div class="divider"></div>
+        <h4>Payment Method</h4>
+        <div class="form-group">
+          <label><input type="radio" name="payment_method" value="COD" checked /> Cash on Delivery</label>
+          <label><input type="radio" name="payment_method" value="ONLINE" /> Online Payment (UPI / Card / Netbanking)</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Place Order</button>
+      </form>
+    </div>
+
+    <div class="card" id="checkout-summary" style="height:fit-content;">
+      <h3>Order Summary</h3>
+      <div id="checkout-items"></div>
+      <div class="divider"></div>
+      <div style="display:flex;justify-content:space-between;margin:8px 0;"><span>Subtotal</span><span id="co-subtotal">₹0</span></div>
+      <div style="display:flex;justify-content:space-between;margin:8px 0;"><span>Delivery</span><span id="co-delivery">₹0</span></div>
+      <div class="divider"></div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:1.1rem;"><span>Total</span><span id="co-total">₹0</span></div>
+    </div>
+  </div>
+</div>
+
+<div id="site-footer"></div>
+
+<script src="/js/api.js"></script>
+<script src="/js/main.js"></script>
+<script>
+function renderSummary() {
+  const items = Cart.get();
+  if (!items.length) {
+    document.getElementById('checkout-root').innerHTML = `<div class="empty-state"><div class="icon">🛒</div><h3>Your cart is empty</h3><a href="/shop.html" class="btn btn-primary">Shop Now</a></div>`;
+    return;
+  }
+  document.getElementById('checkout-items').innerHTML = items.map(i => `
+    <div style="display:flex;justify-content:space-between;font-size:.9rem;margin-bottom:8px;">
+      <span>${i.name} (${i.pack_size}) x${i.quantity}</span>
+      <span>${formatINR(i.unit_price * i.quantity)}</span>
+    </div>`).join('');
+  const subtotal = Cart.subtotal();
+  const delivery = subtotal >= 999 ? 0 : 60;
+  document.getElementById('co-subtotal').textContent = formatINR(subtotal);
+  document.getElementById('co-delivery').textContent = delivery === 0 ? 'FREE' : formatINR(delivery);
+  document.getElementById('co-total').textContent = formatINR(subtotal + delivery);
+}
+
+async function prefillUserDetails() {
+  if (!Auth.isLoggedIn()) return;
+  try {
+    const { user } = await Api.me();
+    const form = document.getElementById('checkout-form');
+    if (!form) return;
+    form.customer_name.value = user.name || '';
+    form.email.value = user.email || '';
+    if (user.phone) form.mobile.value = user.phone;
+    if (user.address) form.address.value = user.address;
+    if (user.city) form.city.value = user.city;
+    if (user.state) form.state.value = user.state;
+    if (user.pincode) form.pincode.value = user.pincode;
+  } catch (e) { /* not logged in or expired */ }
+}
+
+document.addEventListener('submit', async (e) => {
+  if (e.target.id !== 'checkout-form') return;
+  e.preventDefault();
+  const form = e.target;
+  const payload = {
+    customer_name: form.customer_name.value.trim(),
+    mobile: form.mobile.value.trim(),
+    email: form.email.value.trim(),
+    address: form.address.value.trim(),
+    city: form.city.value.trim(),
+    state: form.state.value.trim(),
+    pincode: form.pincode.value.trim(),
+    payment_method: form.payment_method.value,
+    items: Cart.get().map(i => ({ product_id: i.product_id, pack_size: i.pack_size, quantity: i.quantity })),
+  };
+  const btn = form.querySelector('button[type="submit"]');
+  btn.disabled = true; btn.textContent = 'Placing order...';
+  try {
+    const { order } = await Api.createOrder(payload);
+    Cart.clear();
+    window.location.href = `/orders.html?justPlaced=${order.order_code}`;
+  } catch (err) {
+    toast(err.message);
+    btn.disabled = false; btn.textContent = 'Place Order';
+  }
+});
+
+renderSummary();
+prefillUserDetails();
+</script>
+</body>
+</html>

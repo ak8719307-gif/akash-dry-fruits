@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Categories — Akash Admin</title>
+<meta name="robots" content="noindex, nofollow" />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/admin/css/admin.css" />
+</head>
+<body>
+<div class="admin-shell" id="admin-shell"></div>
+<div id="modal-root"></div>
+<script src="/admin/js/admin.js"></script>
+<script>
+renderAdminLayout('Categories');
+
+async function loadCategories() {
+  const content = document.getElementById('admin-content');
+  content.innerHTML = `
+    <div class="filter-row"><button class="btn btn-primary" onclick="openCategoryModal()">+ Add Category</button></div>
+    <div class="card" id="cat-table-wrap"><p>Loading...</p></div>
+  `;
+  renderTable();
+}
+
+async function renderTable() {
+  const { categories } = await AdminApi.categories(true);
+  const wrap = document.getElementById('cat-table-wrap');
+  wrap.innerHTML = categories.length ? `
+    <table class="data-table">
+      <thead><tr><th>Image</th><th>Name</th><th>Slug</th><th>Visible</th><th>Actions</th></tr></thead>
+      <tbody>
+        ${categories.map(c => `
+          <tr>
+            <td><img src="${c.image || '/images/placeholder.jpg'}" onerror="this.src='/images/placeholder.jpg'"/></td>
+            <td>${c.name}</td>
+            <td>${c.slug}</td>
+            <td><span class="badge ${c.visible ? 'badge-green' : 'badge-red'}">${c.visible ? 'Visible' : 'Hidden'}</span></td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick='openCategoryModal(${JSON.stringify(c).replace(/'/g, "&apos;")})'>Edit</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteCategory(${c.id}, '${c.name.replace(/'/g, "\\'")}')">Delete</button>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  ` : '<div class="empty-state">No categories yet.</div>';
+}
+
+function openCategoryModal(cat = null) {
+  const isEdit = !!cat;
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this) this.remove()">
+      <div class="modal">
+        <h3>${isEdit ? 'Edit Category' : 'Add Category'}</h3>
+        <form id="cat-form">
+          <div class="form-group"><label>Category Name *</label><input required name="name" value="${cat?.name || ''}"/></div>
+          <div class="form-group">
+            <label>Category Image</label>
+            <input type="file" id="cat-image-file" accept="image/*"/>
+            <input type="hidden" name="image" id="cat-image-url" value="${cat?.image || ''}"/>
+            <div id="cat-image-preview" style="margin-top:8px;">${cat?.image ? `<img src="${cat.image}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;"/>` : ''}</div>
+          </div>
+          <div class="form-group"><label><input type="checkbox" name="visible" ${cat?.visible !== 0 ? 'checked' : ''} style="width:auto;margin-right:8px;"/> Visible on customer website</label></div>
+          <div style="display:flex;gap:10px;margin-top:16px;">
+            <button type="submit" class="btn btn-primary">${isEdit ? 'Save Changes' : 'Add Category'}</button>
+            <button type="button" class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('cat-image-file').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const { url } = await AdminApi.uploadImage(file);
+      document.getElementById('cat-image-url').value = url;
+      document.getElementById('cat-image-preview').innerHTML = `<img src="${url}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;"/>`;
+    } catch (err) { toast(err.message); }
+  });
+
+  document.getElementById('cat-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const payload = { name: f.name.value, image: f.image.value || null, visible: f.visible.checked };
+    try {
+      if (isEdit) await AdminApi.updateCategory(cat.id, payload);
+      else await AdminApi.createCategory(payload);
+      toast(isEdit ? 'Category updated' : 'Category added');
+      document.getElementById('modal-root').innerHTML = '';
+      renderTable();
+    } catch (err) { toast(err.message); }
+  });
+}
+
+async function deleteCategory(id, name) {
+  if (!confirm(`Delete "${name}"? Products in this category will remain but become uncategorized.`)) return;
+  try {
+    await AdminApi.deleteCategory(id);
+    toast('Category deleted');
+    renderTable();
+  } catch (e) { toast(e.message); }
+}
+
+loadCategories();
+</script>
+</body>
+</html>

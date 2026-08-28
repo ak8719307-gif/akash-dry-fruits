@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Products — Akash Admin</title>
+<meta name="robots" content="noindex, nofollow" />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/admin/css/admin.css" />
+</head>
+<body>
+<div class="admin-shell" id="admin-shell"></div>
+<div id="modal-root"></div>
+<script src="/admin/js/admin.js"></script>
+<script>
+renderAdminLayout('Products');
+let categoriesCache = [];
+
+async function loadProducts() {
+  const content = document.getElementById('admin-content');
+  content.innerHTML = `
+    <div class="filter-row">
+      <input id="search-input" placeholder="Search products..." />
+      <button class="btn btn-primary" onclick="openProductModal()">+ Add Product</button>
+    </div>
+    <div class="card" id="products-table-wrap"><p>Loading...</p></div>
+  `;
+  document.getElementById('search-input').addEventListener('input', debounce(renderTable, 350));
+
+  const { categories } = await AdminApi.categories(true);
+  categoriesCache = categories;
+  renderTable();
+}
+
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+async function renderTable() {
+  const search = document.getElementById('search-input')?.value || '';
+  const { products } = await AdminApi.products({ search, limit: 200 });
+  const wrap = document.getElementById('products-table-wrap');
+  wrap.innerHTML = products.length ? `
+    <table class="data-table">
+      <thead><tr><th>Image</th><th>Name</th><th>Category</th><th>250g</th><th>500g</th><th>1kg</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>
+        ${products.map(p => `
+          <tr>
+            <td><img src="${p.image || '/images/placeholder.jpg'}" onerror="this.src='/images/placeholder.jpg'"/></td>
+            <td>${p.name}</td>
+            <td>${p.category_name || '—'}</td>
+            <td>${p.price_250g ? formatINR(p.price_250g) : '—'}</td>
+            <td>${p.price_500g ? formatINR(p.price_500g) : '—'}</td>
+            <td>${p.price_1kg ? formatINR(p.price_1kg) : '—'}</td>
+            <td>${p.stock}</td>
+            <td><span class="badge ${p.status === 'active' ? 'badge-green' : 'badge-red'}">${p.status}</span></td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick='openProductModal(${JSON.stringify(p).replace(/'/g, "&apos;")})'>Edit</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteProduct(${p.id}, '${p.name.replace(/'/g, "\\'")}')">Delete</button>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  ` : '<div class="empty-state">No products found.</div>';
+}
+
+function openProductModal(product = null) {
+  const isEdit = !!product;
+  const modalRoot = document.getElementById('modal-root');
+  modalRoot.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this) this.remove()">
+      <div class="modal">
+        <h3>${isEdit ? 'Edit Product' : 'Add New Product'}</h3>
+        <form id="product-form">
+          <div class="form-group"><label>Product Name *</label><input required name="name" value="${product?.name || ''}"/></div>
+          <div class="form-group"><label>Description</label><textarea name="description" rows="3">${product?.description || ''}</textarea></div>
+          <div class="form-row">
+            <div class="form-group"><label>Category</label>
+              <select name="category_id">
+                <option value="">— None —</option>
+                ${categoriesCache.map(c => `<option value="${c.id}" ${product?.category_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group"><label>Status</label>
+              <select name="status">
+                <option value="active" ${product?.status === 'active' ? 'selected' : ''}>Active</option>
+                <option value="inactive" ${product?.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Product Image</label>
+            <input type="file" id="image-file" accept="image/*"/>
+            <input type="hidden" name="image" id="image-url" value="${product?.image || ''}"/>
+            <div id="image-preview" style="margin-top:8px;">${product?.image ? `<img src="${product.image}" style="width:70px;height:70px;object-fit:cover;border-radius:8px;"/>` : ''}</div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>MRP (₹) *</label><input required type="number" name="mrp" value="${product?.mrp || ''}"/></div>
+            <div class="form-group"><label>Discount (%)</label><input type="number" name="discount_percent" value="${product?.discount_percent || 0}"/></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>250g Price (₹)</label><input type="number" name="price_250g" value="${product?.price_250g || ''}"/></div>
+            <div class="form-group"><label>500g Price (₹)</label><input type="number" name="price_500g" value="${product?.price_500g || ''}"/></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>1KG Price (₹)</label><input type="number" name="price_1kg" value="${product?.price_1kg || ''}"/></div>
+            <div class="form-group"><label>Stock Quantity *</label><input required type="number" name="stock" value="${product?.stock ?? 0}"/></div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:16px;">
+            <button type="submit" class="btn btn-primary">${isEdit ? 'Save Changes' : 'Add Product'}</button>
+            <button type="button" class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('image-file').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const { url } = await AdminApi.uploadImage(file);
+      document.getElementById('image-url').value = url;
+      document.getElementById('image-preview').innerHTML = `<img src="${url}" style="width:70px;height:70px;object-fit:cover;border-radius:8px;"/>`;
+      toast('Image uploaded');
+    } catch (err) { toast(err.message); }
+  });
+
+  document.getElementById('product-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const payload = {
+      name: f.name.value, description: f.description.value,
+      category_id: f.category_id.value ? Number(f.category_id.value) : null,
+      status: f.status.value, image: f.image.value || null,
+      mrp: Number(f.mrp.value), discount_percent: Number(f.discount_percent.value || 0),
+      price_250g: f.price_250g.value ? Number(f.price_250g.value) : null,
+      price_500g: f.price_500g.value ? Number(f.price_500g.value) : null,
+      price_1kg: f.price_1kg.value ? Number(f.price_1kg.value) : null,
+      stock: Number(f.stock.value),
+    };
+    try {
+      if (isEdit) await AdminApi.updateProduct(product.id, payload);
+      else await AdminApi.createProduct(payload);
+      toast(isEdit ? 'Product updated' : 'Product added');
+      document.getElementById('modal-root').innerHTML = '';
+      renderTable();
+    } catch (err) { toast(err.message); }
+  });
+}
+
+async function deleteProduct(id, name) {
+  if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+  try {
+    await AdminApi.deleteProduct(id);
+    toast('Product deleted');
+    renderTable();
+  } catch (e) { toast(e.message); }
+}
+
+loadProducts();
+</script>
+</body>
+</html>

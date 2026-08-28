@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Product Details — Akash Dry Fruits</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="site-header"></div>
+
+<div class="container section" id="product-root">
+  <div class="spinner"></div>
+</div>
+
+<div class="container section section-alt" style="border-radius:14px;" id="related-root"></div>
+
+<div id="site-footer"></div>
+
+<script src="/js/api.js"></script>
+<script src="/js/main.js"></script>
+<script>
+let currentProduct = null;
+let selectedPack = null;
+let selectedQty = 1;
+
+function getIdFromUrl() {
+  return new URLSearchParams(window.location.search).get('id');
+}
+
+function packsFor(p) {
+  const packs = [];
+  if (p.price_250g) packs.push({ label: '250g', price: p.price_250g });
+  if (p.price_500g) packs.push({ label: '500g', price: p.price_500g });
+  if (p.price_1kg) packs.push({ label: '1kg', price: p.price_1kg });
+  return packs;
+}
+
+async function loadProduct() {
+  const id = getIdFromUrl();
+  if (!id) { document.getElementById('product-root').innerHTML = '<p>Product not specified.</p>'; return; }
+
+  let product;
+  try {
+    const res = await Api.product(id);
+    product = res.product;
+  } catch (e) {
+    document.getElementById('product-root').innerHTML = `<div class="empty-state"><div class="icon">😕</div><h3>Product not found</h3><a href="/shop.html" class="btn btn-primary">Back to Shop</a></div>`;
+    return;
+  }
+  currentProduct = product;
+  const packs = packsFor(product);
+  selectedPack = packs[0];
+
+  document.title = `${product.name} — Akash Dry Fruits`;
+
+  document.getElementById('product-root').innerHTML = `
+    <div class="breadcrumb"><a href="/index.html">Home</a> / <a href="/shop.html">Shop</a> / ${product.name}</div>
+    <div class="grid-2col" style="align-items:start;">
+      <div class="card">
+        <img src="${product.image || '/images/placeholder.jpg'}" alt="${product.name}" style="border-radius:12px;width:100%;max-height:420px;object-fit:cover;" onerror="this.src='/images/placeholder.jpg'"/>
+      </div>
+      <div>
+        <h1>${product.name}</h1>
+        <div class="rating-row" style="margin-bottom:10px;"><span class="stars">${renderStars(product.rating)}</span><span>${product.rating || 0} (${product.rating_count || 0} reviews)</span></div>
+        ${product.category_name ? `<span class="badge badge-gold">${product.category_name}</span>` : ''}
+        <div class="price-row" style="margin:16px 0;">
+          <span class="price" id="pd-price" style="font-size:1.6rem;">${formatINR(selectedPack ? selectedPack.price : product.mrp)}</span>
+          <span class="mrp">${formatINR(product.mrp)}</span>
+          ${product.discount_percent ? `<span class="badge badge-red">${Math.round(product.discount_percent)}% OFF</span>` : ''}
+        </div>
+        <p style="color:var(--gray-500);">${product.description || ''}</p>
+
+        <div class="form-group">
+          <label>Select Pack Size</label>
+          <div class="pack-select" id="pd-packs">
+            ${packs.map((pk, i) => `<span class="pack-pill ${i === 0 ? 'active' : ''}" data-price="${pk.price}" data-label="${pk.label}">${pk.label} — ${formatINR(pk.price)}</span>`).join('')}
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Quantity</label>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <button class="btn btn-outline btn-sm" onclick="changeQty(-1)">−</button>
+            <span id="pd-qty" style="min-width:24px;text-align:center;font-weight:700;">1</span>
+            <button class="btn btn-outline btn-sm" onclick="changeQty(1)">+</button>
+            <span style="color:var(--gray-500);font-size:.85rem;">${product.in_stock ? `${product.stock} in stock` : 'Out of stock'}</span>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;">
+          <button class="btn btn-outline" onclick="addToCart()" ${!product.in_stock ? 'disabled' : ''}>Add to Cart</button>
+          <button class="btn btn-primary" onclick="buyNow()" ${!product.in_stock ? 'disabled' : ''}>Buy Now</button>
+          <a class="btn btn-whatsapp" target="_blank" id="pd-whatsapp" href="#">💬 Order on WhatsApp</a>
+        </div>
+
+        <div class="divider"></div>
+        <div class="trust-grid" style="grid-template-columns:repeat(2,1fr);">
+          <div class="trust-card" style="text-align:left;padding:14px;"><b>🚚 Delivery</b><p style="margin:4px 0 0;font-size:.85rem;">Free above ₹999, else ₹60 delivery charge.</p></div>
+          <div class="trust-card" style="text-align:left;padding:14px;"><b>↩️ Returns</b><p style="margin:4px 0 0;font-size:.85rem;">Replacement available for damaged or incorrect items within 3 days.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Customer Reviews</h2>
+      <div id="pd-reviews" class="review-grid" style="margin-bottom:24px;"></div>
+      <div class="card" style="max-width:520px;">
+        <h4>Write a Review</h4>
+        <div class="star-picker" id="review-stars">
+          <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+        </div>
+        <div class="form-group" style="margin-top:12px;">
+          <textarea id="review-comment" rows="3" placeholder="Share your experience..."></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="submitReview()">Submit Review</button>
+      </div>
+    </div>
+  `;
+
+  bindPackPills(document.getElementById('product-root'));
+  qsa('#pd-packs .pack-pill').forEach(p => p.addEventListener('click', () => {
+    selectedPack = { label: p.dataset.label, price: Number(p.dataset.price) };
+    document.getElementById('pd-price').textContent = formatINR(selectedPack.price);
+    updateWhatsappLink();
+  }));
+
+  let ratingValue = 5;
+  qsa('#review-stars span').forEach(s => s.addEventListener('click', () => {
+    ratingValue = Number(s.dataset.v);
+    qsa('#review-stars span').forEach(st => st.classList.toggle('active', Number(st.dataset.v) <= ratingValue));
+  }));
+  qsa('#review-stars span').forEach(st => st.classList.toggle('active', Number(st.dataset.v) <= ratingValue));
+  window.submitReview = async () => {
+    const comment = document.getElementById('review-comment').value.trim();
+    try {
+      const user = Auth.getUser();
+      await Api.submitReview({ product_id: product.id, rating: ratingValue, comment, customer_name: user ? user.name : prompt('Your name for this review:') || 'Anonymous' });
+      toast('Thanks! Your review will appear once approved.');
+      document.getElementById('review-comment').value = '';
+    } catch (e) { toast(e.message); }
+  };
+
+  loadReviews(product.id);
+  loadRelated(product);
+  updateWhatsappLink();
+}
+
+function changeQty(delta) {
+  selectedQty = Math.max(1, selectedQty + delta);
+  document.getElementById('pd-qty').textContent = selectedQty;
+}
+
+function addToCart() {
+  Cart.add(currentProduct, selectedPack.label, selectedPack.price, selectedQty);
+  toast(`${currentProduct.name} (${selectedPack.label}) x${selectedQty} added to cart`);
+}
+
+function buyNow() {
+  Cart.add(currentProduct, selectedPack.label, selectedPack.price, selectedQty);
+  window.location.href = '/checkout.html';
+}
+
+function updateWhatsappLink() {
+  const msg = `Hi Akash Dry Fruits, I'd like to order:\n${currentProduct.name} (${selectedPack.label}) x${selectedQty} — ${formatINR(selectedPack.price * selectedQty)}`;
+  const link = document.getElementById('pd-whatsapp');
+  if (link) link.href = `https://wa.me/${SITE_CONFIG.whatsapp || ''}?text=${encodeURIComponent(msg)}`;
+}
+
+async function loadReviews(productId) {
+  const { reviews } = await Api.productReviews(productId);
+  document.getElementById('pd-reviews').innerHTML = reviews.length ? reviews.map(r => `
+    <div class="review-card">
+      <span class="stars">${renderStars(r.rating)}</span>
+      <p>${r.comment || ''}</p>
+      <div class="name">${r.customer_name}</div>
+    </div>`).join('') : '<p style="color:var(--gray-500);">No reviews yet for this product.</p>';
+}
+
+async function loadRelated(product) {
+  const { products } = await Api.products({ category: product.category_slug, limit: 4 });
+  const related = products.filter(p => p.id !== product.id);
+  document.getElementById('related-root').innerHTML = related.length ? `
+    <div class="section-title"><h2>You May Also Like</h2></div>
+    <div class="product-grid">${related.map(productCardHtml).join('')}</div>
+  ` : '';
+  bindPackPills(document.getElementById('related-root'));
+}
+
+initShell().then(loadProduct);
+</script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Akash Dry Fruits — Premium Nuts, Dry Fruits &amp; Seeds Online</title>
+<meta name="description" content="Shop premium almonds, cashews, dates, raisins, seeds and trail mixes at Akash Dry Fruits. 100% natural, freshly packed, free delivery above ₹999." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="site-header"></div>
+
+<section class="hero">
+  <div class="container">
+    <div class="hero-text">
+      <span class="badge badge-gold">🌿 100% Natural &amp; Premium Quality</span>
+      <h1>Freshness You Can Taste, Quality You Can Trust</h1>
+      <p>Handpicked almonds, cashews, dates, raisins and seeds — sourced responsibly and packed fresh, delivered straight to your door.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <a href="/shop.html" class="btn btn-primary">Shop Now</a>
+        <a href="#why-us" class="btn btn-outline" style="border-color:#fff;color:#fff;">Why Akash Dry Fruits?</a>
+      </div>
+      <div class="hero-badges">
+        <div>🚚 Free Delivery above ₹999</div>
+        <div>💵 Cash on Delivery</div>
+        <div>✅ Quality Assured</div>
+      </div>
+    </div>
+    <div class="hero-img">
+      <img src="/images/hero-banner.jpg" alt="Premium dry fruits assortment" onerror="this.src='/images/placeholder.jpg'"/>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="offer-banner">
+      <div>
+        <h2 style="color:#fff;">Festive Special Offers</h2>
+        <p style="margin:0;">Up to 20% off on premium gift boxes &amp; combo packs. Limited time only.</p>
+      </div>
+      <a href="/shop.html" class="btn btn-dark">Grab the Offer</a>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-title"><h2>Shop by Category</h2><a href="/shop.html">View All →</a></div>
+    <div class="cat-grid" id="home-categories"></div>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="container">
+    <div class="section-title"><h2>Featured Products</h2><a href="/shop.html">View All →</a></div>
+    <div class="product-grid" id="home-featured"></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-title"><h2>Best Sellers</h2><a href="/shop.html">View All →</a></div>
+    <div class="product-grid" id="home-bestsellers"></div>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="container">
+    <div class="section-title"><h2>New Arrivals</h2><a href="/shop.html">View All →</a></div>
+    <div class="product-grid" id="home-new"></div>
+  </div>
+</section>
+
+<section class="section" id="why-us">
+  <div class="container">
+    <div class="section-title"><h2>Why Choose Akash Dry Fruits</h2></div>
+    <div class="trust-grid">
+      <div class="trust-card"><div class="icon">🌿</div><h4>100% Natural</h4><p>No additives, no artificial preservatives — just pure, natural goodness.</p></div>
+      <div class="trust-card"><div class="icon">📦</div><h4>Quality Packaging</h4><p>Sealed, airtight packaging that locks in freshness and crunch.</p></div>
+      <div class="trust-card"><div class="icon">🚚</div><h4>Free Delivery</h4><p>Enjoy free delivery on all orders above ₹999, pan India.</p></div>
+      <div class="trust-card"><div class="icon">💵</div><h4>Cash on Delivery</h4><p>Pay conveniently at your doorstep, or choose secure online payment.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="container">
+    <div class="section-title"><h2>What Our Customers Say</h2></div>
+    <div class="review-grid" id="home-reviews"></div>
+  </div>
+</section>
+
+<div id="site-footer"></div>
+
+<script src="/js/api.js"></script>
+<script src="/js/main.js"></script>
+<script>
+async function loadHome() {
+  try {
+    const { categories } = await Api.categories();
+    document.getElementById('home-categories').innerHTML = categories.map(c => `
+      <a class="cat-card" href="/shop.html?category=${c.slug}">
+        <img src="${c.image || '/images/placeholder.jpg'}" alt="${c.name}" onerror="this.src='/images/placeholder.jpg'"/>
+        <div class="cat-body">${c.name}</div>
+      </a>`).join('');
+  } catch (e) { console.error(e); }
+
+  try {
+    const { products } = await Api.featured();
+    document.getElementById('home-featured').innerHTML = products.map(productCardHtml).join('') || '<p>No products yet.</p>';
+    bindPackPills(document.getElementById('home-featured'));
+  } catch (e) { console.error(e); }
+
+  try {
+    const { products } = await Api.bestsellers();
+    document.getElementById('home-bestsellers').innerHTML = products.map(productCardHtml).join('') || '<p>No products yet.</p>';
+    bindPackPills(document.getElementById('home-bestsellers'));
+  } catch (e) { console.error(e); }
+
+  try {
+    const { products } = await Api.newArrivals();
+    document.getElementById('home-new').innerHTML = products.map(productCardHtml).join('') || '<p>No products yet.</p>';
+    bindPackPills(document.getElementById('home-new'));
+  } catch (e) { console.error(e); }
+
+  try {
+    const { reviews } = await Api.latestReviews();
+    document.getElementById('home-reviews').innerHTML = reviews.length ? reviews.map(r => `
+      <div class="review-card">
+        <span class="stars">${renderStars(r.rating)}</span>
+        <p>"${r.comment || ''}"</p>
+        <div class="name">${r.customer_name}</div>
+        <div style="font-size:.78rem;color:var(--gray-500);">on ${r.product_name}</div>
+      </div>`).join('') : '<p>No reviews yet — be the first to review a product!</p>';
+  } catch (e) { console.error(e); }
+}
+loadHome();
+</script>
+</body>
+</html>

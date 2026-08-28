@@ -1,0 +1,6 @@
+.env
+db/akash.sqlite
+db/akash.sqlite-shm
+db/akash.sqlite-wal
+public/images/uploads/
+npm-debug.log

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reviews — Akash Admin</title>
+<meta name="robots" content="noindex, nofollow" />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/admin/css/admin.css" />
+</head>
+<body>
+<div class="admin-shell" id="admin-shell"></div>
+<script src="/admin/js/admin.js"></script>
+<script>
+renderAdminLayout('Reviews');
+
+async function loadReviews() {
+  const content = document.getElementById('admin-content');
+  content.innerHTML = `<div class="card" id="reviews-wrap"><p>Loading...</p></div>`;
+  renderTable();
+}
+
+async function renderTable() {
+  const { reviews } = await AdminApi.reviews();
+  const wrap = document.getElementById('reviews-wrap');
+  wrap.innerHTML = reviews.length ? `
+    <table class="data-table">
+      <thead><tr><th>Product</th><th>Customer</th><th>Rating</th><th>Comment</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>
+        ${reviews.map(r => `
+          <tr>
+            <td>${r.product_name}</td>
+            <td>${r.customer_name}</td>
+            <td>${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</td>
+            <td style="max-width:280px;">${r.comment || '—'}</td>
+            <td><span class="badge ${r.approved ? 'badge-green' : 'badge-gold'}">${r.approved ? 'Approved' : 'Pending'}</span></td>
+            <td>
+              ${!r.approved ? `<button class="btn btn-primary btn-sm" onclick="approve(${r.id})">Approve</button>` : `<button class="btn btn-outline btn-sm" onclick="reject(${r.id})">Hide</button>`}
+              <button class="btn btn-danger btn-sm" onclick="remove(${r.id})">Delete</button>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  ` : '<div class="empty-state">No reviews yet.</div>';
+}
+
+async function approve(id) { await AdminApi.approveReview(id); toast('Review approved'); renderTable(); }
+async function reject(id) { await AdminApi.rejectReview(id); toast('Review hidden'); renderTable(); }
+async function remove(id) { if (!confirm('Delete this review?')) return; await AdminApi.deleteReview(id); toast('Review deleted'); renderTable(); }
+
+loadReviews();
+</script>
+</body>
+</html>

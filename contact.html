@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Contact Us — Akash Dry Fruits</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="site-header"></div>
+
+<div class="page-header">
+  <div class="container">
+    <div class="breadcrumb"><a href="/index.html">Home</a> / Contact Us</div>
+    <h1>Get In Touch</h1>
+  </div>
+</div>
+
+<div class="container section">
+  <div class="grid-2col">
+    <div class="card">
+      <h3>Send Us a Message</h3>
+      <form id="contact-form">
+        <div class="form-group"><label>Name *</label><input required name="name" /></div>
+        <div class="form-row">
+          <div class="form-group"><label>Email</label><input type="email" name="email" /></div>
+          <div class="form-group"><label>Phone</label><input name="phone" /></div>
+        </div>
+        <div class="form-group"><label>Message *</label><textarea required name="message" rows="4"></textarea></div>
+        <button class="btn btn-primary btn-block" type="submit">Send Message</button>
+      </form>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:18px;" id="contact-info"></div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <iframe title="map" src="https://maps.google.com/maps?q=Chennai&t=&z=13&ie=UTF8&iwloc=&output=embed" width="100%" height="260" style="border:0;" loading="lazy"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="site-footer"></div>
+<script src="/js/api.js"></script>
+<script src="/js/main.js"></script>
+<script>
+async function loadContactInfo() {
+  document.getElementById('contact-info').innerHTML = `
+    <h4>Akash Dry Fruits</h4>
+    <p>📞 <a href="tel:${SITE_CONFIG.phone}">${SITE_CONFIG.phone}</a></p>
+    <p>💬 <a href="https://wa.me/${SITE_CONFIG.whatsapp}" target="_blank">WhatsApp: ${SITE_CONFIG.whatsapp}</a></p>
+    <p>✉️ <a href="mailto:${SITE_CONFIG.email}">${SITE_CONFIG.email}</a></p>
+    <p>📍 ${SITE_CONFIG.address}</p>
+    <a class="btn btn-whatsapp btn-block" style="margin-top:10px;" target="_blank" href="https://wa.me/${SITE_CONFIG.whatsapp}?text=${encodeURIComponent('Hi Akash Dry Fruits, I have a question.')}">💬 Chat on WhatsApp</a>
+  `;
+}
+
+document.getElementById('contact-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  try {
+    const { message } = await Api.sendContact({ name: f.name.value, email: f.email.value, phone: f.phone.value, message: f.message.value });
+    toast(message);
+    f.reset();
+  } catch (err) { toast(err.message); }
+});
+
+initShell().then(loadContactInfo);
+</script>
+</body>
+</html>

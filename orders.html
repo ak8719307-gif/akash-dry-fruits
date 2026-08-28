@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Orders — Akash Dry Fruits</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="site-header"></div>
+
+<div class="page-header">
+  <div class="container">
+    <div class="breadcrumb"><a href="/index.html">Home</a> / My Orders</div>
+    <h1>My Orders</h1>
+  </div>
+</div>
+
+<div class="container section" id="orders-root">
+  <div class="spinner"></div>
+</div>
+
+<div id="site-footer"></div>
+
+<script src="/js/api.js"></script>
+<script src="/js/main.js"></script>
+<script>
+const STATUS_COLORS = {
+  Pending: 'badge-gold', Confirmed: 'badge-gold', Processing: 'badge-gold',
+  Shipped: 'badge-gold', 'Out for Delivery': 'badge-gold', Delivered: 'badge-green', Cancelled: 'badge-red',
+};
+
+function orderCardHtml(o) {
+  return `
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div>
+          <b>Order ${o.order_code}</b>
+          <div style="font-size:.8rem;color:var(--gray-500);">${new Date(o.created_at).toLocaleString('en-IN')}</div>
+        </div>
+        <span class="badge ${STATUS_COLORS[o.status] || 'badge-gold'}">${o.status}</span>
+      </div>
+      <div class="divider"></div>
+      ${o.items.map(it => `<div style="display:flex;justify-content:space-between;font-size:.88rem;margin-bottom:6px;">
+        <span>${it.product_name} (${it.pack_size}) x${it.quantity}</span><span>${formatINR(it.line_total)}</span>
+      </div>`).join('')}
+      <div class="divider"></div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;"><span>Total</span><span>${formatINR(o.total)}</span></div>
+      <div style="font-size:.8rem;color:var(--gray-500);margin-top:6px;">Payment: ${o.payment_method === 'COD' ? 'Cash on Delivery' : 'Online Payment'}</div>
+    </div>`;
+}
+
+async function loadOrders() {
+  const root = document.getElementById('orders-root');
+  const params = new URLSearchParams(window.location.search);
+  const justPlaced = params.get('justPlaced');
+
+  let banner = '';
+  if (justPlaced) banner = `<div class="card" style="background:#e5f6e8;margin-bottom:20px;"><b>🎉 Order placed successfully!</b> Your order ID is <b>${justPlaced}</b>. We'll notify you as it progresses.</div>`;
+
+  if (Auth.isLoggedIn()) {
+    try {
+      const { orders } = await Api.myOrders();
+      root.innerHTML = banner + (orders.length ? orders.map(orderCardHtml).join('') : `<div class="empty-state"><div class="icon">📦</div><h3>No orders yet</h3><a href="/shop.html" class="btn btn-primary">Start Shopping</a></div>`);
+    } catch (e) {
+      root.innerHTML = banner + `<div class="empty-state"><div class="icon">⚠️</div><p>${e.message}</p></div>`;
+    }
+  } else {
+    root.innerHTML = banner + `
+      <div class="card" style="max-width:480px;margin:0 auto;">
+        <h3>Track a Guest Order</h3>
+        <p style="color:var(--gray-500);font-size:.9rem;">Enter your Order ID and mobile number used at checkout.</p>
+        <div class="form-group"><label>Order ID</label><input id="track-code" placeholder="ADF-20260828-1234" value="${justPlaced || ''}"/></div>
+        <div class="form-group"><label>Mobile Number</label><input id="track-mobile" placeholder="10-digit mobile number"/></div>
+        <button class="btn btn-primary btn-block" onclick="trackOrder()">Track Order</button>
+        <div id="track-result" style="margin-top:16px;"></div>
+        <div class="divider"></div>
+        <p style="text-align:center;font-size:.9rem;">Have an account? <a href="/login.html" style="color:var(--gold-600);font-weight:600;">Login</a> to see all your orders.</p>
+      </div>`;
+  }
+}
+
+async function trackOrder() {
+  const code = document.getElementById('track-code').value.trim();
+  const mobile = document.getElementById('track-mobile').value.trim();
+  const resultEl = document.getElementById('track-result');
+  if (!code || !mobile) { toast('Enter both Order ID and mobile number'); return; }
+  try {
+    const { order } = await Api.trackOrder(code, mobile);
+    resultEl.innerHTML = orderCardHtml(order);
+  } catch (e) {
+    resultEl.innerHTML = `<p style="color:var(--red-600);">${e.message}</p>`;
+  }
+}
+
+loadOrders();
+</script>
+</body>
+</html>
